@@ -1,0 +1,46 @@
+---
+- name: "register node.js ppa"
+  apt_repository: >
+      repo='ppa:chris-lea/node.js'
+      update_cache=yes
+
+- name: "install node.js"
+  apt: pkg=nodejs
+
+- name: "link /usr/local/bin/node"
+  file: >
+      src=/usr/bin/nodejs
+      dest=/usr/local/bin/node
+      state=link
+      force=yes
+
+- name: "install npm workaround"
+  copy: >
+      src=tmpnpm.sh
+      dest=/usr/local/bin/npm
+      mode="0755"
+  when: nodejs_npm_use_temporary
+
+- name: "install global npm dependencies"
+  npm: name={{ item }} global=yes
+  with_items: nodejs_global_packages
+
+- name: "create log directories"
+  file: >
+    path=/var/log/{{ item.app }}/node
+    state=directory
+    owner=www-data
+    group=www-data
+  with_items: nodejs_servers
+
+# this must happen on deploy time i think
+- name: "configure node web-applications"
+  template: >
+    src=supervisor.j2
+    dest=/etc/supervisor/conf.d/nodejs.conf
+  register: nodejs_supervisor_changed
+
+- name: "restart supervisor programs"
+  supervisorctl: name={{ item.name|default(item.app) }} state=restarted
+  when: nodejs_supervisor_changed|changed
+  with_items: nodejs_servers

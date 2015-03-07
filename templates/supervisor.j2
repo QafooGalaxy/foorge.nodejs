@@ -1,0 +1,11 @@
+{% for item in nodejs_servers %}
+[program:{{ item.name|default(item.app) }}]
+command=envconsul -prefix apps/{{ item.app }} -upcase -sanitize {{ item.program|default('node index.js') }}
+autostart=true
+autorestart=true
+directory=/var/www/{{ item.app }}
+stderr_logfile=/var/log/{{ item.app }}/node/stderr.log
+stdout_logfile=/var/log/{{ item.app }}/node/stdout.log
+user=www-data
+
+{% endfor %}
